@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# 本机配置与数据（可能含真实学生姓名，绝不入库）
+config.json
+*.migrated.json
+config.json.tmp
+.write_test
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.log
+*.tmp
