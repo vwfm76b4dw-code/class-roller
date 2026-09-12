@@ -200,45 +200,29 @@ class SettingsDialog(ctk.CTkToplevel):
 
         self._divider(card).grid(row=2, column=0, sticky="ew", padx=SPACE_MD)
 
-        # ── 不重复抽取 ──
+        # ── 公平抽取 ──
         row2 = ctk.CTkFrame(card, fg_color="transparent")
         row2.grid(
             row=3, column=0, sticky="ew", padx=SPACE_MD, pady=(SPACE_MD, SPACE_XS)
         )
         row2.grid_columnconfigure(0, weight=1)
 
-        self._row_label(row2, "避免重复抽取").grid(row=0, column=0, sticky="w")
+        self._row_label(row2, "公平抽取").grid(row=0, column=0, sticky="w")
 
-        self._repeat_value = ctk.CTkLabel(
+        self._fair_switch = ctk.CTkSwitch(
             row2,
             text="",
-            font=FONT_SMALL,
-            text_color=self._palette.text_secondary,
-            width=70,
-            anchor="e",
-        )
-        self._repeat_value.grid(row=0, column=1, sticky="e", padx=(0, SPACE_SM))
-
-        self._repeat_slider = ctk.CTkSlider(
-            card,
-            from_=0,
-            to=30,
-            number_of_steps=30,
+            width=44,
             progress_color=self._palette.accent,
-            button_color=self._palette.accent,
-            button_hover_color=self._palette.accent_hover,
-            fg_color=self._palette.border_strong,
-            command=self._on_repeat_slide,
+            command=self._toggle_fair,
         )
-        self._repeat_slider.grid(
-            row=4, column=0, sticky="ew", padx=SPACE_MD, pady=(0, SPACE_XS)
-        )
-        self._repeat_slider.set(self._controller.config.avoid_repeat_window)
-        self._update_repeat_label(int(self._controller.config.avoid_repeat_window))
+        self._fair_switch.grid(row=0, column=1, sticky="e")
+        if self._controller.config.fair_mode:
+            self._fair_switch.select()
 
-        self._row_hint(card, "关闭时每次都可能抽到同一人").grid(
-            row=5, column=0, sticky="w", padx=SPACE_MD, pady=(0, SPACE_MD)
-        )
+        self._row_hint(
+            card, "所有人被抽到一轮之前不重复点名，抽完一轮自动重新开始"
+        ).grid(row=4, column=0, sticky="w", padx=SPACE_MD, pady=(0, SPACE_MD))
 
         # ── 配置文件位置 ──
         self._build_config_card(parent, row=1)
@@ -546,13 +530,9 @@ class SettingsDialog(ctk.CTkToplevel):
         self._controller.set_always_on_top(bool(self._top_switch.get()))
         self._notify_changed()
 
-    def _on_repeat_slide(self, value: float) -> None:
-        window = int(round(value))
-        self._update_repeat_label(window)
-        self._controller.set_avoid_repeat_window(window)
-
-    def _update_repeat_label(self, window: int) -> None:
-        self._repeat_value.configure(text="关闭" if window <= 0 else f"最近 {window} 人")
+    def _toggle_fair(self) -> None:
+        self._controller.set_fair_mode(bool(self._fair_switch.get()))
+        self._notify_changed()
 
     # ── 定位与关闭 ────────────────────────────────────────
     def _position_beside(self, master) -> None:

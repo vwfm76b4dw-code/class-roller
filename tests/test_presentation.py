@@ -544,6 +544,81 @@ def test_visibility_guard_respects_user_hide():
         app.destroy()
 
 
+def test_window_scaling_disabled():
+    """CTk 窗口缩放必须禁用——回归测试。
+
+    学校 150% DPI 屏上，CTk 默认把 geometry() 按 1.5 放大，而保存的
+    尺寸是物理像素，导致窗口每重启放大 50%，直到越过屏幕盖住任务栏。
+    """
+    import customtkinter as ctk
+
+    from roller.presentation.theme import apply_theme
+
+    apply_theme()
+    assert float(ctk.ScalingTracker.window_scaling) == 1.0, (
+        "窗口缩放必须为 1.0，否则高 DPI 屏上窗口会循环放大"
+    )
+
+
+def test_window_size_roundtrip_does_not_grow():
+    """保存→恢复一个来回，窗口尺寸必须分毫不差（不允许任何放大）。"""
+    from roller.presentation.main_window import MainWindow
+    from roller.presentation.theme import apply_theme
+
+    palette = apply_theme()
+    cfg = Path(tempfile.mkdtemp()) / "config.json"
+    controller = AppController(ConfigStore(cfg), RosterParser())
+
+    app1 = MainWindow(controller, palette)
+    try:
+        app1.update()
+        app1.geometry("444x333")
+        app1.update()
+        app1._save_size()
+        saved_w = controller.config.window_width
+        saved_h = controller.config.window_height
+        assert saved_w == 444 and saved_h == 333, (saved_w, saved_h)
+    finally:
+        app1.destroy()
+
+    app2 = MainWindow(controller, palette)
+    try:
+        app2.update()
+        assert app2.winfo_width() == 444, app2.winfo_width()
+        assert app2.winfo_height() == 333, app2.winfo_height()
+    finally:
+        app2.destroy()
+
+
+def test_oversized_saved_size_clamped_to_work_area():
+    """配置里的超大尺寸（如旧版 DPI 放大产物）恢复时必须被钳回屏幕内。"""
+    from roller.presentation.main_window import MainWindow
+    from roller.presentation.theme import apply_theme
+
+    palette = apply_theme()
+    cfg = Path(tempfile.mkdtemp()) / "config.json"
+    cfg.write_text(
+        '{"names":["张三"],"version":3,'
+        '"window_width":99999,"window_height":99999,"window_x":-500,"window_y":-500}',
+        encoding="utf-8",
+    )
+    controller = AppController(ConfigStore(cfg), RosterParser())
+
+    app = MainWindow(controller, palette)
+    try:
+        app.update()
+        from roller.presentation.window_utils import work_area
+
+        left, top, right, bottom = work_area()
+        w, h = app.winfo_width(), app.winfo_height()
+        x, y = app.winfo_x(), app.winfo_y()
+        assert w <= right - left, f"宽度越界: {w}"
+        assert h <= bottom - top, f"高度越界: {h}"
+        assert x >= left and y >= top, f"位置越界: ({x},{y})"
+    finally:
+        app.destroy()
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

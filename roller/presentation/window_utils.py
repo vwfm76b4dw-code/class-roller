@@ -40,8 +40,11 @@ DWMWCP_ROUND = 2
 _is_windows = sys.platform == "win32"
 
 # ── 函数签名（只声明一次）──────────────────────────────────
+SPI_GETWORKAREA = 0x0030
+
 _user32 = None
 _dwmapi = None
+_kernel32 = None
 
 
 def _load() -> bool:
@@ -77,7 +80,14 @@ def _load() -> bool:
         user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
         user32.GetWindowLongPtrW.argtypes = [wintypes.HWND, ctypes.c_int]
 
+        user32.SystemParametersInfoW.restype = wintypes.BOOL
+        user32.SystemParametersInfoW.argtypes = [
+            wintypes.UINT, wintypes.UINT, ctypes.c_void_p, wintypes.UINT
+        ]
+
         _user32 = user32
+
+        _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
         dwm = ctypes.WinDLL("dwmapi", use_last_error=True)
         dwm.DwmSetWindowAttribute.restype = ctypes.c_long
@@ -305,3 +315,52 @@ class TopmostKeeper:
             return
         _push_topmost(self._window, True)
         self._schedule()
+
+# ── 工作区（不含任务栏的屏幕区域）─────────────────────────
+def work_area() -> tuple[int, int, int, int]:
+    """返回主屏工作区 (left, top, right, bottom)。
+
+    拿不到时退回整块屏幕（减去一条估计的任务栏高度），
+    保证窗口永远不会越出可视范围、盖住任务栏。
+    """
+    if not _load():
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            w = root.winfo_screenwidth()
+            h = root.winfo_screenheight() - 40
+        finally:
+            root.destroy()
+        return (0, 0, w, h)
+    try:
+        rect = wintypes.RECT()
+        ok = _user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0)
+        if ok:
+            return (rect.left, rect.top, rect.right, rect.bottom)
+    except Exception:
+        pass
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        w = root.winfo_screenwidth()
+        h = root.winfo_screenheight() - 40
+    finally:
+        root.destroy()
+    return (0, 0, w, h)
+
+
+def clamp_to_work_area(
+    x: int, y: int, width: int, height: int
+) -> tuple[int, int, int, int]:
+    """把窗口的位置和尺寸钳制到工作区内。"""
+    left, top, right, bottom = work_area()
+    area_w = max(1, right - left)
+    area_h = max(1, bottom - top)
+
+    width = max(1, min(width, area_w))
+    height = max(1, min(height, area_h))
+    x = max(left, min(x, right - width))
+    y = max(top, min(y, bottom - height))
+    return x, y, width, height

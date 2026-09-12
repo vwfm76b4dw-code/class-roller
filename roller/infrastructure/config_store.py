@@ -108,9 +108,14 @@ class AppConfig:
     last_dir: str = ""
     # 课堂场景下默认置顶，投影时不会被其他窗口盖住
     always_on_top: bool = True
-    avoid_repeat_window: int = 0  # 0 = 关闭"不重复抽取"
+    # 公平模式：一轮之内不重复点名（所有人抽过一遍才重新开始）。
+    # avoid_repeat_window 是 v3.0 的旧字段，仅保留兼容读取，已不再使用。
+    fair_mode: bool = True
+    avoid_repeat_window: int = 0
     window_width: int = 400
     window_height: int = 340
+    window_x: int = -1   # -1 = 未记录，居中显示
+    window_y: int = -1
     version: int = 3
 
     def to_dict(self) -> dict:
@@ -119,9 +124,12 @@ class AppConfig:
             "history": [r.to_dict() for r in self.history],
             "last_dir": self.last_dir,
             "always_on_top": self.always_on_top,
+            "fair_mode": self.fair_mode,
             "avoid_repeat_window": self.avoid_repeat_window,
             "window_width": self.window_width,
             "window_height": self.window_height,
+            "window_x": self.window_x,
+            "window_y": self.window_y,
             "version": self.version,
         }
 
@@ -155,9 +163,12 @@ class AppConfig:
             history=history[-MAX_HISTORY:],
             last_dir=str(raw.get("last_dir") or ""),
             always_on_top=bool(raw.get("always_on_top", True)),
+            fair_mode=bool(raw.get("fair_mode", True)),
             avoid_repeat_window=_int("avoid_repeat_window", 0, 0, 999),
             window_width=_int("window_width", 400, MIN_WINDOW_W, MAX_WINDOW_W),
             window_height=_int("window_height", 340, MIN_WINDOW_H, MAX_WINDOW_H),
+            window_x=_int("window_x", -1, -1, 999999),
+            window_y=_int("window_y", -1, -1, 999999),
         )
 
 

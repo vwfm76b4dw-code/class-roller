@@ -38,10 +38,14 @@ from roller.presentation.theme import (
     Palette,
 )
 from roller.presentation.widgets.name_display import NameDisplay
-from roller.presentation.window_utils import TopmostKeeper, apply_modern_frame
+from roller.presentation.window_utils import (
+    TopmostKeeper,
+    apply_modern_frame,
+    clamp_to_work_area,
+)
 
-MIN_W = 340
-MIN_H = 280
+MIN_W = 320
+MIN_H = 260
 
 
 class MainWindow(ctk.CTk):
@@ -83,15 +87,21 @@ class MainWindow(ctk.CTk):
             apply_app_icon(self)
 
         cfg = self._controller.config
-        self.geometry(f"{cfg.window_width}x{cfg.window_height}")
         self.minsize(MIN_W, MIN_H)
         self.resizable(True, True)
         self.configure(fg_color=self._palette.bg_root)
 
+        # 恢复尺寸并钳制到工作区：防止旧配置里被 DPI 放大的尺寸
+        # 再次越出屏幕、盖住任务栏（学校投影常见 150% 缩放）
+        x, y, w, h = clamp_to_work_area(
+            cfg.window_x, cfg.window_y,
+            cfg.window_width, cfg.window_height,
+        )
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
         # 关闭按钮 → 缩到托盘
         self.protocol("WM_DELETE_WINDOW", self._hide_to_tray)
         self.bind("<Configure>", self._on_configure)
-        self._center_on_screen()
 
         # Win11 圆角 + 标题栏与画布同色，视觉上连成一片
         if not compat.NO_DWM:
@@ -113,15 +123,6 @@ class MainWindow(ctk.CTk):
 
 
 
-    def _center_on_screen(self) -> None:
-        self.update_idletasks()
-        w = self.winfo_width() or 400
-        h = self.winfo_height() or 340
-        sw = self.winfo_screenwidth()
-        sh = self.winfo_screenheight()
-        x = (sw - w) // 2
-        y = (sh - h) // 3
-        self.geometry(f"{w}x{h}+{x}+{y}")
 
     def _on_configure(self, event) -> None:
         """窗口尺寸变化时延迟保存，避免拖动过程中频繁写盘。"""
@@ -144,9 +145,14 @@ class MainWindow(ctk.CTk):
             # 跳过最小化和最大化状态，只记忆普通状态的用户尺寸
             if self.state() in ("iconic", "zoomed"):
                 return
+            x = self.winfo_x()
+            y = self.winfo_y()
             width, height = self.winfo_width(), self.winfo_height()
             if width > 1 and height > 1:
+                # 保存前钳制到工作区，绝不让越界尺寸进入配置
+                x, y, width, height = clamp_to_work_area(x, y, width, height)
                 self._controller.set_window_size(width, height)
+                self._controller.set_window_position(x, y)
         except Exception:
             pass
 

@@ -76,9 +76,16 @@ BORDER_W = 1
 
 
 def apply_theme() -> Palette:
-    """设置全局外观并返回配色表。"""
+    """设置全局外观并返回配色表。
+
+    窗口缩放必须禁用：CTk 默认把 geometry() 里的尺寸按系统 DPI 缩放系数
+    放大（150% 屏 → ×1.5），而我们保存的窗口尺寸是物理像素（winfo_width），
+    下次启动再被放大一次——窗口每重启一次就大 50%，直到越过屏幕。
+    禁用后 geometry 即物理像素，保存/恢复自洽。控件缩放保留，高分屏字体仍清晰。
+    """
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
+    ctk.set_window_scaling(1.0)
     return Palette()
 
 

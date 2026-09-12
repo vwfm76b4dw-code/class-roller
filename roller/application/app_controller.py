@@ -48,9 +48,6 @@ class AppController:
         self._roster = Roster(self._config.names)
         self._history: List[DrawRecord] = list(self._config.history)
 
-        # 近期抽中者，用于"不重复抽取"窗口
-        self._recent_winners: List[str] = [r.name for r in self._history[-20:]]
-
     # ── 只读属性 ──────────────────────────────────────────
     @property
     def bus(self) -> EventBus:
@@ -158,7 +155,12 @@ class AppController:
             self._bus.emit(EventType.ERROR, message="请先在设置里导入学生名单")
             return None
 
-        winner = self._pick_winner()
+        if self._config.fair_mode:
+            winner = self._draw_service.draw_fair(
+                self._roster, [r.name for r in self._history]
+            )
+        else:
+            winner = self._draw_service.draw(self._roster)
         if winner is None:
             return None
 
@@ -166,36 +168,15 @@ class AppController:
         self._history.append(record)
         if len(self._history) > MAX_HISTORY:
             self._history = self._history[-MAX_HISTORY:]
-        self._remember_winner(winner.name)
         self._persist()
 
         self._bus.emit(EventType.DRAW_FINISHED, name=winner.name)
         self._bus.emit(EventType.HISTORY_CHANGED, count=len(self._history))
         return winner.name
 
-    def _pick_winner(self) -> Optional[Student]:
-        """应用"不重复抽取"规则后选出中奖者。"""
-        window = self._config.avoid_repeat_window
-        if window <= 0:
-            return self._draw_service.draw(self._roster)
-
-        recent = set(self._recent_winners[-window:])
-        candidates = [s for s in self._roster if s.name not in recent]
-        if not candidates:
-            # 全员都抽过了，重置窗口重新开始
-            self._recent_winners.clear()
-            candidates = list(self._roster.students)
-        return self._draw_service.draw_from(candidates)
-
-    def _remember_winner(self, name: str) -> None:
-        self._recent_winners.append(name)
-        if len(self._recent_winners) > 100:
-            self._recent_winners = self._recent_winners[-100:]
-
     # ── 历史 ──────────────────────────────────────────────
     def clear_history(self) -> None:
         self._history.clear()
-        self._recent_winners.clear()
         self._persist()
         self._bus.emit(EventType.HISTORY_CHANGED, count=0)
 
@@ -204,8 +185,9 @@ class AppController:
         self._config.always_on_top = bool(value)
         self._persist()
 
-    def set_avoid_repeat_window(self, window: int) -> None:
-        self._config.avoid_repeat_window = max(0, int(window))
+    def set_fair_mode(self, enabled: bool) -> None:
+        """公平模式：本轮所有人被抽过之前不重复（默认开）。"""
+        self._config.fair_mode = bool(enabled)
         self._persist()
 
     def set_window_size(self, width: int, height: int) -> None:
@@ -219,6 +201,20 @@ class AppController:
             return
         self._config.window_width = new_w
         self._config.window_height = new_h
+        self._persist()
+
+    def set_window_position(self, x: int, y: int) -> None:
+        """记住窗口位置；坐标异常（如 -32000 最小化残留）时忽略。"""
+        try:
+            x, y = int(x), int(y)
+        except (TypeError, ValueError):
+            return
+        if x < -8 or y < -8 or x > 99999 or y > 99999:
+            return
+        if (x, y) == (self._config.window_x, self._config.window_y):
+            return
+        self._config.window_x = x
+        self._config.window_y = y
         self._persist()
 
     def shutdown(self) -> None:
