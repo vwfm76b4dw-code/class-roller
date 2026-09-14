@@ -51,8 +51,9 @@ class SettingsDialog(ctk.CTkToplevel):
         self._on_changed = on_changed
 
         self.title("设置")
-        self.geometry("460x560")
-        self.minsize(420, 460)
+        # 逻辑尺寸（CTk 会按 DPI 乘回去），小屏也放得下
+        self.geometry("470x580")
+        self.minsize(400, 420)
         self.resizable(True, True)
         self.configure(fg_color=palette.bg_root)
         self.transient(master)
@@ -94,6 +95,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self._build_roster_tab(self._tabs.add("名单"))
         self._build_history_tab(self._tabs.add("历史"))
         self._build_prefs_tab(self._tabs.add("偏好"))
+        self._build_appearance_tab(self._tabs.add("外观"))
 
         ctk.CTkButton(
             self,
@@ -290,6 +292,112 @@ class SettingsDialog(ctk.CTkToplevel):
             font=FONT_SMALL,
             text_color=self._palette.text_muted,
         ).grid(row=row + 1, column=0, sticky="e", pady=(SPACE_SM, 0))
+
+
+    # ── 外观页 ────────────────────────────────────────────
+    def _build_appearance_tab(self, parent) -> None:
+        parent.grid_columnconfigure(0, weight=1)
+
+        # 背景效果
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=self._palette.bg_elevated,
+            corner_radius=RADIUS_LG,
+            border_width=BORDER_W,
+            border_color=self._palette.border,
+        )
+        card.grid(row=0, column=0, sticky="ew", pady=(SPACE_SM, 0))
+        card.grid_columnconfigure(0, weight=1)
+
+        self._row_label(card, "窗口背景").grid(
+            row=0, column=0, sticky="w", padx=SPACE_MD, pady=(SPACE_MD, SPACE_XS)
+        )
+
+        self._backdrop_var = ctk.StringVar(value=self._controller.config.backdrop)
+        options = [
+            ("opaque", "不透明", "最清晰，兼容性最好"),
+            ("translucent", "半透明", "整窗轻微透明，所有系统可用"),
+            ("glass", "液态玻璃", "系统级模糊背景；不支持时自动退回半透明"),
+        ]
+        for index, (value, label, hint) in enumerate(options):
+            row = ctk.CTkFrame(card, fg_color="transparent")
+            row.grid(
+                row=1 + index, column=0, sticky="ew",
+                padx=SPACE_MD, pady=(0, SPACE_TIGHT),
+            )
+            row.grid_columnconfigure(1, weight=1)
+            ctk.CTkRadioButton(
+                row,
+                text=label,
+                value=value,
+                variable=self._backdrop_var,
+                font=FONT_BODY,
+                text_color=self._palette.text_primary,
+                fg_color=self._palette.accent,
+                hover_color=self._palette.accent_hover,
+                command=self._on_backdrop_change,
+            ).grid(row=0, column=0, sticky="w")
+            ctk.CTkLabel(
+                row,
+                text=hint,
+                font=FONT_SMALL,
+                text_color=self._palette.text_muted,
+                anchor="e",
+            ).grid(row=0, column=1, sticky="e", padx=(SPACE_SM, 0))
+
+        ctk.CTkLabel(
+            card,
+            text="玻璃效果依赖系统合成，个别 Windows 版本表现不同；"
+                 "若显示异常请改回「不透明」。",
+            font=FONT_SMALL,
+            text_color=self._palette.text_muted,
+            anchor="w",
+            justify="left",
+            wraplength=340,
+        ).grid(row=4, column=0, sticky="w", padx=SPACE_MD, pady=(0, SPACE_MD))
+
+        # 动画
+        card2 = ctk.CTkFrame(
+            parent,
+            fg_color=self._palette.bg_elevated,
+            corner_radius=RADIUS_LG,
+            border_width=BORDER_W,
+            border_color=self._palette.border,
+        )
+        card2.grid(row=1, column=0, sticky="ew", pady=(SPACE_MD, 0))
+        card2.grid_columnconfigure(0, weight=1)
+
+        row = ctk.CTkFrame(card2, fg_color="transparent")
+        row.grid(row=0, column=0, sticky="ew", padx=SPACE_MD, pady=(SPACE_MD, SPACE_XXS))
+        row.grid_columnconfigure(0, weight=1)
+
+        self._row_label(row, "界面动画").grid(row=0, column=0, sticky="w")
+
+        self._anim_switch = ctk.CTkSwitch(
+            row,
+            text="",
+            width=44,
+            progress_color=self._palette.accent,
+            command=self._toggle_animations,
+        )
+        self._anim_switch.grid(row=0, column=1, sticky="e")
+        if self._controller.config.animations:
+            self._anim_switch.select()
+
+        self._row_hint(
+            card2, "抽中时的结果揭示与按压反馈；系统开启「减少动态效果」时会自动停用"
+        ).grid(row=1, column=0, sticky="w", padx=SPACE_MD, pady=(0, SPACE_MD))
+
+        ctk.CTkLabel(
+            parent,
+            text="窗口尺寸与位置会按屏幕 DPI 正确换算，换投影/换电脑时不会异常放大，"
+                 "也不会越出屏幕。",
+            font=FONT_SMALL,
+            text_color=self._palette.text_muted,
+            anchor="w",
+            justify="left",
+            wraplength=380,
+        ).grid(row=2, column=0, sticky="ew", pady=(SPACE_MD, 0))
 
     # ── 通用控件构造 ──────────────────────────────────────
     def _text_area(self, master) -> ctk.CTkTextbox:
@@ -530,28 +638,46 @@ class SettingsDialog(ctk.CTkToplevel):
         self._controller.set_always_on_top(bool(self._top_switch.get()))
         self._notify_changed()
 
+    def _on_backdrop_change(self) -> None:
+        self._controller.set_backdrop(self._backdrop_var.get())
+        self._notify_changed()
+
+    def _toggle_animations(self) -> None:
+        self._controller.set_animations(bool(self._anim_switch.get()))
+        self._notify_changed()
+
     def _toggle_fair(self) -> None:
         self._controller.set_fair_mode(bool(self._fair_switch.get()))
         self._notify_changed()
 
     # ── 定位与关闭 ────────────────────────────────────────
     def _position_beside(self, master) -> None:
-        """放在主窗口旁边，避免盖住它。"""
+        """放在主窗口旁边且不越出所在显示器工作区。
+
+        用主窗口所在显示器的工作区（多显示器下各自独立，允许负坐标），
+        而不是全局屏幕尺寸——否则副屏/投影场景会被拽回主屏。
+        """
         self.update_idletasks()
         try:
+            from roller.presentation.window_utils import (
+                clamp_to_work_area,
+                work_area_for_window,
+            )
+
+            area_l, area_t, area_r, area_b = work_area_for_window(master)
             mx, my = master.winfo_rootx(), master.winfo_rooty()
-            mw = master.winfo_width()
-            sw = self.winfo_screenwidth()
-            sh = self.winfo_screenheight()
+            mw, mh = master.winfo_width(), master.winfo_height()
             w, h = self.winfo_width(), self.winfo_height()
             gap = 12
 
+            # 优先右侧，放不下改左侧，都放不下则与主窗口左对齐
             x = mx + mw + gap
-            if x + w > sw - 8:
+            if x + w > area_r:
                 alt = mx - w - gap
-                x = alt if alt >= 8 else max(8, sw - w - 8)
+                x = alt if alt >= area_l else mx
+            y = my
 
-            y = max(8, min(my, sh - h - 48))
+            x, y, w, h = clamp_to_work_area(x, y, w, h)
             self.geometry(f"{w}x{h}+{x}+{y}")
         except Exception:
             pass

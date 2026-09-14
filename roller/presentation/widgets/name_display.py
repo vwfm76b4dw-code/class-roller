@@ -41,6 +41,8 @@ class NameDisplay(ctk.CTkFrame):
         )
         self._palette = palette
         self._fade_job: Optional[str] = None
+        self._surface = palette.bg_card
+        self._glass = False
 
         self.grid_columnconfigure(0, weight=1)
         # 上下各留一个弹性行，让内容始终垂直居中
@@ -109,6 +111,43 @@ class NameDisplay(ctk.CTkFrame):
             text_color=self._palette.text_muted,
         )
 
+    def reveal(self, name: str, animator=None) -> None:
+        """抽中结果的展示入口。
+
+        有 animator 时播放"放大落定 + 颜色渐入"的揭示动画；
+        否则直接显示终态（尊重系统"减少动态效果"）。
+        """
+        if animator is None:
+            self.show_winner(name)
+            return
+
+        self._cancel_fade()
+        self._set_status("抽中", self._palette.accent)
+        animator.reveal_name(
+            self._name,
+            name,
+            target_font=FONT_DISPLAY,
+            target_color=self._palette.accent,
+            base_color=self._surface,
+            on_done=self._sync_name_font,
+        )
+
+    def _sync_name_font(self) -> None:
+        """动画把字号逐帧改过，落定后再确认一次最终字体。"""
+        try:
+            self._name.configure(font=FONT_DISPLAY, text_color=self._palette.accent)
+        except Exception:
+            pass
+
+    def apply_surface(self, card_color: str, glass: bool = False) -> None:
+        """切换表面配色（不透明 ↔ 玻璃）。"""
+        self._surface = card_color
+        self._glass = bool(glass)
+        try:
+            self.configure(fg_color=card_color)
+        except Exception:
+            pass
+
     def show_winner(self, name: str) -> None:
         """抽中：大字 + 短暂淡入。"""
         self._cancel_fade()
@@ -116,7 +155,7 @@ class NameDisplay(ctk.CTkFrame):
         self._name.configure(text=name, font=FONT_DISPLAY)
 
         # 从接近底色的浅灰渐入到强调色，制造"落定"感
-        start = lerp_color(self._palette.bg_card, self._palette.accent, 0.15)
+        start = lerp_color(self._surface, self._palette.accent, 0.15)
         self._name.configure(text_color=start)
         self._fade(0, start)
 

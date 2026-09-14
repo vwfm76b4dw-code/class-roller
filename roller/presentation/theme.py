@@ -29,6 +29,7 @@ class Palette:
     # 强调色
     accent: str = "#0f6cbd"
     accent_hover: str = "#0c5ca3"
+    accent_press: str = "#0a4d88"      # 按压加深
     accent_soft: str = "#e9f2fb"
 
     # 状态色
@@ -39,6 +40,11 @@ class Palette:
     # 描边两级
     border: str = "#e7e7e7"
     border_strong: str = "#d4d4d4"
+
+    # 玻璃/半透明模式下的表面：留出透明度让背景效果透出来，
+    # 同时保证文字对比度仍满足可读性（正文 ≥ 4.5:1）
+    bg_glass: str = "#f3f3f3"
+    bg_card_glass: str = "#fbfbfb"
 
 
 FONT_FAMILY = "Microsoft YaHei UI"

@@ -607,9 +607,9 @@ def test_oversized_saved_size_clamped_to_work_area():
     app = MainWindow(controller, palette)
     try:
         app.update()
-        from roller.presentation.window_utils import work_area
+        from roller.presentation.window_utils import primary_work_area
 
-        left, top, right, bottom = work_area()
+        left, top, right, bottom = primary_work_area()
         w, h = app.winfo_width(), app.winfo_height()
         x, y = app.winfo_x(), app.winfo_y()
         assert w <= right - left, f"宽度越界: {w}"

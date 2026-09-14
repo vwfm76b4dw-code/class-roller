@@ -116,7 +116,11 @@ class AppConfig:
     window_height: int = 340
     window_x: int = -1   # -1 = 未记录，居中显示
     window_y: int = -1
-    version: int = 3
+    # 背景效果：opaque / translucent / glass
+    backdrop: str = "opaque"
+    # 界面动画开关（另受系统"减少动态效果"约束）
+    animations: bool = True
+    version: int = 4
 
     def to_dict(self) -> dict:
         return {
@@ -130,6 +134,8 @@ class AppConfig:
             "window_height": self.window_height,
             "window_x": self.window_x,
             "window_y": self.window_y,
+            "backdrop": self.backdrop,
+            "animations": self.animations,
             "version": self.version,
         }
 
@@ -151,6 +157,10 @@ class AppConfig:
                     if record.name:
                         history.append(record)
 
+        def _choice(value, allowed, fallback: str) -> str:
+            text = str(value).strip().lower() if value is not None else ""
+            return text if text in allowed else fallback
+
         def _int(key: str, fallback: int, lo: int, hi: int) -> int:
             try:
                 value = int(raw.get(key, fallback))
@@ -169,6 +179,8 @@ class AppConfig:
             window_height=_int("window_height", 340, MIN_WINDOW_H, MAX_WINDOW_H),
             window_x=_int("window_x", -1, -1, 999999),
             window_y=_int("window_y", -1, -1, 999999),
+            backdrop=_choice(raw.get("backdrop"), ("opaque", "translucent", "glass"), "opaque"),
+            animations=bool(raw.get("animations", True)),
         )
 
 

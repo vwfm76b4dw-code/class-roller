@@ -185,6 +185,16 @@ class AppController:
         self._config.always_on_top = bool(value)
         self._persist()
 
+    def set_backdrop(self, mode: str) -> None:
+        """背景效果：opaque / translucent / glass。"""
+        self._config.backdrop = str(mode)
+        self._persist()
+
+    def set_animations(self, enabled: bool) -> None:
+        """界面动画开关。"""
+        self._config.animations = bool(enabled)
+        self._persist()
+
     def set_fair_mode(self, enabled: bool) -> None:
         """公平模式：本轮所有人被抽过之前不重复（默认开）。"""
         self._config.fair_mode = bool(enabled)
