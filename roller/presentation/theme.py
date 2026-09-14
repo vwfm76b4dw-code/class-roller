@@ -22,9 +22,10 @@ class Palette:
     bg_hover: str = "#ebebeb"
 
     # 文字三级
-    text_primary: str = "#171717"
-    text_secondary: str = "#5c5c5c"
-    text_muted: str = "#8f8f8f"
+    text_primary: str = "#1a1a1a"
+    text_secondary: str = "#555555"
+    # 小字用色：原来 #8f8f8f 在浅底上偏淡，笔画发虚；加深以提升清晰度
+    text_muted: str = "#6b6b6b"
 
     # 强调色
     accent: str = "#0f6cbd"
@@ -41,10 +42,13 @@ class Palette:
     border: str = "#e7e7e7"
     border_strong: str = "#d4d4d4"
 
-    # 玻璃/半透明模式下的表面：留出透明度让背景效果透出来，
-    # 同时保证文字对比度仍满足可读性（正文 ≥ 4.5:1）
-    bg_glass: str = "#f3f3f3"
-    bg_card_glass: str = "#fbfbfb"
+    # 玻璃模式的表面：柔和的冷调浅色，靠明度与高光边缘表达通透感。
+    # 不依赖系统模糊（实测部分 Win11 版本不生效），因此任何系统上观感一致。
+    bg_glass: str = "#dfe6f0"          # 画布：冷调浅蓝灰
+    bg_card_glass: str = "#fcfdff"     # 卡片：近白，极淡冷调
+    bg_inner_glass: str = "#f4f7fb"    # 卡片内的次级面（结果区）
+    glass_edge: str = "#ffffff"        # 卡片高光边（玻璃边缘反光）
+    glass_shadow: str = "#c3cede"      # 卡片下方投影层（制造纵深）
 
 
 FONT_FAMILY = "Microsoft YaHei UI"
@@ -58,6 +62,7 @@ FONT_BUTTON = (FONT_FAMILY, 15, "bold")
 
 # 圆角：与 Win11 观感一致，小而克制
 RADIUS_LG = 10
+RADIUS_GLASS = 14   # 玻璃模式卡片圆角，略大以显得轻盈
 RADIUS_MD = 8
 RADIUS_SM = 6
 

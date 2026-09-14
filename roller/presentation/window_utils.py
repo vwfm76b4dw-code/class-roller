@@ -394,7 +394,18 @@ class Backdrop:
             modes.append(self.GLASS)
         return modes
 
-    def apply(self, mode: str, alpha: float = 0.92) -> None:
+    # 半透明模式的整窗不透明度（越高越清晰）
+    TRANSLUCENT_ALPHA = 0.95
+
+    def apply(self, mode: str) -> None:
+        """应用背景模式。
+
+        glass 走"视觉玻璃"：用柔和冷调配色 + 卡片高光边表达通透感，
+        **不**依赖系统模糊。原因是实测部分 Win11 版本（如 26200）的
+        DWM 亚克力只上色调、不产生模糊，此时任何真透明都只会露出
+        清晰杂乱的桌面背景，反而难看且文字发虚。
+        系统模糊仍会尝试启用，在支持的机器上作为额外增益。
+        """
         if mode not in (self.OPAQUE, self.TRANSLUCENT, self.GLASS):
             mode = self.OPAQUE
         self._mode = mode
@@ -410,17 +421,12 @@ class Backdrop:
             return
 
         if mode == self.TRANSLUCENT:
-            self._set_alpha(alpha)
+            # 整窗轻微透明：保留一点通透感，但幅度小以免文字发虚
+            self._set_alpha(self.TRANSLUCENT_ALPHA)
             return
 
+        # glass：尝试启用系统模糊（不挖空、不降 alpha，保证内容锐利）
         self._blur = self._enable_blur()
-        if not self._blur:
-            # 系统模糊不可用 → 退回半透明，至少保留通透感
-            self._set_alpha(alpha)
-            return
-
-        # 模糊成功：把画布色挖空，让系统背景透出来（真正的"液态玻璃"）
-        self._enable_chroma()
 
     def _enable_chroma(self) -> None:
         """把窗口画布设为色键并挖空，露出后面的系统模糊背景。

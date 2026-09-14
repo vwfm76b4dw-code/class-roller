@@ -38,6 +38,7 @@ from roller.presentation.dpi import (
 from roller.presentation.resources import apply_app_icon
 from roller.presentation.theme import (
     BORDER_W,
+    RADIUS_GLASS,
     FONT_BODY,
     FONT_BUTTON,
     FONT_SMALL,
@@ -211,8 +212,19 @@ class MainWindow(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # 内容整体放在一个容器里，四周留出间距——玻璃模式下这段间距
-        # 就是透出系统模糊背景的区域
+        # 结果卡下方的投影层：玻璃模式下显示，制造"卡片浮起"的纵深。
+        # 与卡片放在同一网格单元、四周各外扩 3px、整体下移 3px。
+        self._shadow = ctk.CTkFrame(
+            self,
+            fg_color=self._palette.bg_root,
+            corner_radius=RADIUS_MD,
+        )
+        self._shadow.grid(
+            row=0, column=0, sticky="nsew",
+            padx=SPACE_LG - 4, pady=(SPACE_LG + 4, SPACE_SM - 4),
+        )
+        self._shadow.grid_remove()
+
         self._display = NameDisplay(self, self._palette)
         self._display.grid(
             row=0, column=0, sticky="nsew",
@@ -343,7 +355,7 @@ class MainWindow(ctk.CTk):
             return
         text = f"{count} 名学生，已抽 {history} 次"
         if self._controller.config.fair_mode:
-            text += "（公平抽取）"
+            text += " · 一轮不重复"
         self._status.configure(text=text, text_color=self._palette.text_muted)
 
     def _flash_status(self, message: str, color: str) -> None:
@@ -361,21 +373,40 @@ class MainWindow(ctk.CTk):
         if self._backdrop is None:
             return
         mode = self._backdrop.mode
+        glass = mode == Backdrop.GLASS
         soft = mode != Backdrop.OPAQUE
+
+        canvas = self._palette.bg_glass if soft else self._palette.bg_root
         card = self._palette.bg_card_glass if soft else self._palette.bg_card
-        # 玻璃模式：画布用色键；半透明：用浅色画布配合整窗 alpha
-        canvas = self._backdrop.canvas_color(
-            self._palette.bg_glass if soft else self._palette.bg_root
-        )
+        # 玻璃模式下卡片带白色高光边，模拟玻璃厚度与边缘反光
+        edge = self._palette.glass_edge if glass else self._palette.border
+        edge_width = 2 if glass else BORDER_W
+
         try:
             self.configure(fg_color=canvas)
-            self._status.configure(fg_color=card)
-            self._display.apply_surface(card, soft)
-            # 标题栏保持实色浅底（DWM 标题栏不支持透明）
+            self._status.configure(fg_color=canvas)
+            # 投影层仅在玻璃模式显示
+            if glass:
+                self._shadow.configure(
+                    fg_color=self._palette.glass_shadow,
+                    corner_radius=RADIUS_GLASS,
+                )
+                self._shadow.grid()
+                self._shadow.lower(self._display)
+            else:
+                self._shadow.grid_remove()
+            self._display.apply_surface(
+                card, glass=glass, border_color=edge, border_width=edge_width
+            )
+            self._settings_btn.configure(
+                fg_color=card if glass else self._palette.bg_elevated,
+                border_color=edge if glass else self._palette.border_strong,
+            )
             apply_modern_frame(
                 self,
-                caption_color=self._palette.bg_glass if soft else self._palette.bg_root,
-                border_color=self._palette.border_strong,
+                caption_color=canvas,
+                border_color=self._palette.glass_shadow if glass
+                else self._palette.border_strong,
                 text_color=self._palette.text_primary,
             )
         except Exception:

@@ -50,10 +50,23 @@ class SettingsDialog(ctk.CTkToplevel):
         self._palette = palette
         self._on_changed = on_changed
 
+        # 与主窗口背景模式保持一致：玻璃模式沿用同一冷调画布与卡片色。
+        # 用 dataclasses.replace 只改需要的字段，避免逐个列举导致漏项。
+        from dataclasses import replace
+
+        from roller.presentation.window_utils import Backdrop
+
+        if getattr(controller.config, "backdrop", "opaque") == Backdrop.GLASS:
+            palette = replace(
+                palette,
+                bg_root=palette.bg_glass,
+                bg_card=palette.bg_card_glass,
+                bg_elevated=palette.bg_inner_glass,
+            )
         self.title("设置")
         # 逻辑尺寸（CTk 会按 DPI 乘回去），小屏也放得下
-        self.geometry("470x580")
-        self.minsize(400, 420)
+        self.geometry("540x620")
+        self.minsize(460, 480)
         self.resizable(True, True)
         self.configure(fg_color=palette.bg_root)
         self.transient(master)
@@ -223,7 +236,9 @@ class SettingsDialog(ctk.CTkToplevel):
             self._fair_switch.select()
 
         self._row_hint(
-            card, "所有人被抽到一轮之前不重复点名，抽完一轮自动重新开始"
+            card,
+            "关闭（默认）：每次独立抽取，概率严格相等\n"
+            "开启：一轮之内不重复点名，抽完一轮自动重新开始",
         ).grid(row=4, column=0, sticky="w", padx=SPACE_MD, pady=(0, SPACE_MD))
 
         # ── 配置文件位置 ──
@@ -267,7 +282,7 @@ class SettingsDialog(ctk.CTkToplevel):
             text_color=self._palette.text_secondary,
             anchor="w",
             justify="left",
-            wraplength=340,
+            wraplength=390,
         )
         self._config_path_label.grid(
             row=1, column=0, sticky="ew", padx=SPACE_MD, pady=(0, SPACE_SM)
@@ -317,17 +332,12 @@ class SettingsDialog(ctk.CTkToplevel):
         options = [
             ("opaque", "不透明", "最清晰，兼容性最好"),
             ("translucent", "半透明", "整窗轻微透明，所有系统可用"),
-            ("glass", "液态玻璃", "系统级模糊背景；不支持时自动退回半透明"),
+            ("glass", "液态玻璃", "冷调画布 + 浮起的白卡片，带柔和投影"),
         ]
         for index, (value, label, hint) in enumerate(options):
-            row = ctk.CTkFrame(card, fg_color="transparent")
-            row.grid(
-                row=1 + index, column=0, sticky="ew",
-                padx=SPACE_MD, pady=(0, SPACE_TIGHT),
-            )
-            row.grid_columnconfigure(1, weight=1)
-            ctk.CTkRadioButton(
-                row,
+            # 单选按钮一行，说明另起一行缩进对齐——避免右对齐小字被挤断
+            radio = ctk.CTkRadioButton(
+                card,
                 text=label,
                 value=value,
                 variable=self._backdrop_var,
@@ -336,25 +346,37 @@ class SettingsDialog(ctk.CTkToplevel):
                 fg_color=self._palette.accent,
                 hover_color=self._palette.accent_hover,
                 command=self._on_backdrop_change,
-            ).grid(row=0, column=0, sticky="w")
+            )
+            radio.grid(
+                row=1 + index * 2, column=0, sticky="w",
+                padx=SPACE_MD, pady=(SPACE_TIGHT if index else 0, 0),
+            )
             ctk.CTkLabel(
-                row,
+                card,
                 text=hint,
                 font=FONT_SMALL,
                 text_color=self._palette.text_muted,
-                anchor="e",
-            ).grid(row=0, column=1, sticky="e", padx=(SPACE_SM, 0))
+                anchor="w",
+                justify="left",
+                wraplength=380,
+            ).grid(
+                row=2 + index * 2, column=0, sticky="w",
+                padx=(SPACE_MD + 24, SPACE_MD),
+            )
 
         ctk.CTkLabel(
             card,
-            text="玻璃效果依赖系统合成，个别 Windows 版本表现不同；"
-                 "若显示异常请改回「不透明」。",
+            text="液态玻璃用冷调配色与层次投影表现通透感，不依赖系统模糊，"
+                 "因此在各版本 Windows 上观感一致，也不会让文字发虚。",
             font=FONT_SMALL,
             text_color=self._palette.text_muted,
             anchor="w",
             justify="left",
-            wraplength=340,
-        ).grid(row=4, column=0, sticky="w", padx=SPACE_MD, pady=(0, SPACE_MD))
+            wraplength=390,
+        ).grid(
+            row=1 + len(options) * 2, column=0, sticky="w",
+            padx=SPACE_MD, pady=(SPACE_SM, SPACE_MD),
+        )
 
         # 动画
         card2 = ctk.CTkFrame(
@@ -437,7 +459,7 @@ class SettingsDialog(ctk.CTkToplevel):
             text_color=self._palette.text_muted,
             anchor="w",
             justify="left",
-            wraplength=340,
+            wraplength=390,
         )
 
     def _divider(self, master) -> ctk.CTkFrame:

@@ -43,6 +43,7 @@ class NameDisplay(ctk.CTkFrame):
         self._fade_job: Optional[str] = None
         self._surface = palette.bg_card
         self._glass = False
+        self._inner_surface = palette.bg_card
 
         self.grid_columnconfigure(0, weight=1)
         # 上下各留一个弹性行，让内容始终垂直居中
@@ -139,14 +140,43 @@ class NameDisplay(ctk.CTkFrame):
         except Exception:
             pass
 
-    def apply_surface(self, card_color: str, glass: bool = False) -> None:
-        """切换表面配色（不透明 ↔ 玻璃）。"""
+    def apply_surface(
+        self,
+        card_color: str,
+        glass: bool = False,
+        border_color: str | None = None,
+        border_width: int | None = None,
+    ) -> None:
+        """切换表面样式（不透明 ↔ 玻璃）。
+
+        玻璃模式下用更大的圆角与高光边，营造"浮在磨砂玻璃上的卡片"。
+        """
         self._surface = card_color
         self._glass = bool(glass)
         try:
             self.configure(fg_color=card_color)
         except Exception:
             pass
+        if border_color is not None:
+            try:
+                self.configure(border_color=border_color)
+            except Exception:
+                pass
+        if border_width is not None:
+            try:
+                self.configure(border_width=border_width)
+            except Exception:
+                pass
+        if glass:
+            try:
+                from roller.presentation.theme import RADIUS_GLASS
+
+                self.configure(corner_radius=RADIUS_GLASS)
+                self._inner_surface = self._palette.bg_inner_glass
+            except Exception:
+                pass
+        else:
+            self._inner_surface = self._palette.bg_card
 
     def show_winner(self, name: str) -> None:
         """抽中：大字 + 短暂淡入。"""

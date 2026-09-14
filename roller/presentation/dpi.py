@@ -26,7 +26,7 @@ from typing import Optional, Tuple
 MIN_LOGIC_W, MIN_LOGIC_H = 200, 160
 MAX_LOGIC_W, MAX_LOGIC_H = 4000, 3000
 
-DEFAULT_W, DEFAULT_H = 400, 340
+DEFAULT_W, DEFAULT_H = 440, 380
 
 
 def window_scaling_of(window) -> float:

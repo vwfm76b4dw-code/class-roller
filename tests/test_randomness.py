@@ -138,13 +138,61 @@ def _controller():
     return AppController(ConfigStore(cfg))
 
 
-def test_controller_fair_mode_default_on():
+def test_controller_fair_mode_default_off():
+    """默认是纯均匀随机（每次独立、概率严格相等），公平模式为可选。"""
     ctrl = _controller()
-    assert ctrl.config.fair_mode is True
+    assert ctrl.config.fair_mode is False
+
+
+def test_default_mode_no_position_bias():
+    """核心要求：每个人被抽中的概率与它在名单中的位置无关。
+
+    用 4 人名单各抽 4000 次（纯均匀模式），每人期望 1000 次；
+    允许 ±12% 偏差（宽松界，只抓"某个位置明显偏低"这类真实偏差）。
+    """
+    ctrl = _controller()
+    ctrl.replace_roster(str(ROOT / "tests" / "fixtures" / "D4.txt"))         if (ROOT / "tests" / "fixtures" / "D4.txt").exists() else None
+    for name in ["甲", "乙", "丙", "丁"]:
+        ctrl.add_student(name)
+    counts = {n: 0 for n in ctrl.roster.names()}
+    N = 4000
+    for _ in range(N):
+        counts[ctrl.draw_now()] += 1
+    expect = N / len(counts)
+    for name, c in counts.items():
+        assert 0.88 * expect <= c <= 1.12 * expect, f"{name}: {c}（期望 {expect:.0f}）"
+
+
+def test_fair_mode_no_position_bias_over_rounds():
+    """公平模式下同样无位置偏差：整轮是均匀随机排列，每人每轮必被抽到一次。
+
+    验证方式：统计每人在"一轮中的第几个被抽到"的分布，
+    若实现有位置偏好，某些人会被系统性地排在前面。
+    """
+    from roller.domain.draw_service import DrawService, SystemRandom
+    from roller.domain.models import Roster
+
+    names = ["甲", "乙", "丙", "丁"]
+    roster = Roster(names)
+    svc = DrawService(SystemRandom(seed=20260915))
+    first_position_counts = {n: 0 for n in names}
+    ROUNDS = 1200
+    for _ in range(ROUNDS):
+        history = []
+        for _ in range(len(names)):
+            w = svc.draw_fair(roster, history).name
+            history.append(w)
+        first_position_counts[history[0]] += 1
+    expect = ROUNDS / len(names)
+    for name, c in first_position_counts.items():
+        assert 0.8 * expect <= c <= 1.2 * expect, (
+            f"{name} 被首位抽中的次数 {c}（期望 {expect:.0f}）——存在位置偏差"
+        )
 
 
 def test_controller_fair_draw_no_repeat_until_round_done():
     ctrl = _controller()
+    ctrl.set_fair_mode(True)          # 公平模式需显式开启
     ctrl.replace_roster(str(ROOT / "tests" / "fixtures" / "A_plain.txt"))  # 3 人
     drawn = [ctrl.draw_now() for _ in range(3)]
     assert len(set(drawn)) == 3, f"一轮内重复: {drawn}"
@@ -155,11 +203,13 @@ def test_controller_fairness_survives_restart():
     cfg = Path(tempfile.mkdtemp()) / "config.json"
 
     ctrl1 = AppController(ConfigStore(cfg))
+    ctrl1.set_fair_mode(True)
     ctrl1.replace_roster(str(ROOT / "tests" / "fixtures" / "A_plain.txt"))
     first = ctrl1.draw_now()
 
     # 模拟重启
     ctrl2 = AppController(ConfigStore(cfg))
+    assert ctrl2.config.fair_mode is True
     rest = []
     for _ in range(2):
         rest.append(ctrl2.draw_now())
@@ -168,32 +218,30 @@ def test_controller_fairness_survives_restart():
 
 
 def test_controller_manual_mode_allows_repeat():
-    """关掉公平模式后允许重复（纯均匀）。"""
+    """纯均匀模式下允许重复（默认即此模式）。"""
     ctrl = _controller()
     ctrl.replace_roster(str(ROOT / "tests" / "fixtures" / "A_plain.txt"))
-    ctrl.set_fair_mode(False)
     assert ctrl.config.fair_mode is False
-    # 抽 30 次：3 人必出现重复
     seen = [ctrl.draw_now() for _ in range(30)]
-    assert len(set(seen)) < 30
+    assert len(set(seen)) < 30, "纯均匀模式应允许重复抽取"
 
 
 def test_fair_mode_persisted():
     cfg = Path(tempfile.mkdtemp()) / "config.json"
     ctrl1 = AppController(ConfigStore(cfg))
-    ctrl1.set_fair_mode(False)
+    ctrl1.set_fair_mode(True)
 
     ctrl2 = AppController(ConfigStore(cfg))
-    assert ctrl2.config.fair_mode is False
+    assert ctrl2.config.fair_mode is True
 
 
-def test_old_config_without_fair_field_defaults_on():
-    """v3.0 的旧配置没有 fair_mode 字段 → 默认开启公平模式。"""
+def test_old_config_without_fair_field_uses_default():
+    """旧配置没有 fair_mode 字段 → 用当前默认（纯均匀）。"""
     import json
     cfg = Path(tempfile.mkdtemp()) / "config.json"
     cfg.write_text(json.dumps({"names": ["张三"], "version": 3}), encoding="utf-8")
     ctrl = AppController(ConfigStore(cfg))
-    assert ctrl.config.fair_mode is True
+    assert ctrl.config.fair_mode is False
 
 
 if __name__ == "__main__":
