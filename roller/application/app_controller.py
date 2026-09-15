@@ -15,6 +15,7 @@ from typing import List, Optional
 
 from roller.application.events import EventBus, EventType
 from roller.domain.draw_service import DrawService, RandomSource
+from roller.domain.fair_bag import FairBag, rebuild_from_history
 from roller.domain.models import DrawRecord, Roster, Student
 from roller.infrastructure.config_store import (
     MAX_HISTORY,
@@ -47,6 +48,13 @@ class AppController:
         self._config: AppConfig = config_store.load()
         self._roster = Roster(self._config.names)
         self._history: List[DrawRecord] = list(self._config.history)
+
+        # 公平抽取袋：优先用配置里保存的状态；旧配置没有则从历史重建
+        self._fair_bag = FairBag.from_dict(self._config.fair_bag_state)
+        if not self._fair_bag.remaining and not self._config.fair_bag_state:
+            self._fair_bag = rebuild_from_history(
+                self._roster.names(), [r.name for r in self._history]
+            )
 
     # ── 只读属性 ──────────────────────────────────────────
     @property
@@ -82,6 +90,7 @@ class AppController:
         self._config.last_dir = str(Path(path).parent)
         self._persist()
 
+        self._sync_fair_bag()
         self._bus.emit(
             EventType.ROSTER_IMPORTED,
             added=added,
@@ -104,6 +113,7 @@ class AppController:
         self._config.last_dir = str(Path(path).parent)
         self._persist()
 
+        self._sync_fair_bag()
         self._bus.emit(
             EventType.ROSTER_IMPORTED,
             added=len(self._roster),
@@ -117,6 +127,7 @@ class AppController:
     def add_student(self, name: str) -> bool:
         ok = self._roster.add(name)
         if ok:
+            self._sync_fair_bag()
             self._persist()
             self._bus.emit(EventType.ROSTER_CHANGED, count=len(self._roster))
         return ok
@@ -130,6 +141,7 @@ class AppController:
 
     def clear_roster(self) -> None:
         self._roster.clear()
+        self._fair_bag = FairBag()
         self._persist()
         self._bus.emit(EventType.ROSTER_CHANGED, count=0)
 
@@ -156,9 +168,17 @@ class AppController:
             return None
 
         if self._config.fair_mode:
-            winner = self._draw_service.draw_fair(
-                self._roster, [r.name for r in self._history]
-            )
+            # 用显式维护的抽取袋，而不是从历史反推"本轮还剩谁"。
+            # 反推在轮次边界有歧义：39 人名单、39 条历史与 40 条历史都会
+            # 被判定为"又完成一轮"，导致新一轮刚开始就被重置、刚抽过的人
+            # 立刻重复（用户实测数据里 10 次内同一人出现两次）。
+            name = self._fair_bag.draw(self._draw_service.rng, self._roster.names())
+            winner = None
+            if name is not None:
+                for stu in self._roster.students:
+                    if stu.name == name:
+                        winner = stu
+                        break
         else:
             winner = self._draw_service.draw(self._roster)
         if winner is None:
@@ -177,6 +197,7 @@ class AppController:
     # ── 历史 ──────────────────────────────────────────────
     def clear_history(self) -> None:
         self._history.clear()
+        self._fair_bag = FairBag()          # 袋子一并重置
         self._persist()
         self._bus.emit(EventType.HISTORY_CHANGED, count=0)
 
@@ -199,6 +220,13 @@ class AppController:
         """玻璃强度百分比（60-160）。"""
         self._config.glass_strength = max(60, min(160, int(value)))
         self._persist()
+
+    def _sync_fair_bag(self) -> None:
+        """名单变动后让抽取袋与名单一致（剔除已移除者、补进新增者）。"""
+        try:
+            self._fair_bag.sync(self._roster.names())
+        except Exception:
+            pass
 
     def set_fair_mode(self, enabled: bool) -> None:
         """公平模式：本轮所有人被抽过之前不重复（默认开）。"""
@@ -240,4 +268,5 @@ class AppController:
     def _persist(self) -> None:
         self._config.names = self._roster.names()
         self._config.history = list(self._history)
+        self._config.fair_bag_state = self._fair_bag.to_dict()
         self._config_store.save(self._config)

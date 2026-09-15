@@ -27,6 +27,7 @@ CORE_TESTS = [
     "tests/test_infrastructure.py",
     "tests/test_config_location.py",
     "tests/test_randomness.py",
+    "tests/test_fair_draw.py",
     "tests/test_document_formats.py",
     "tests/test_winfix.py",
     "tests/test_web_ui.py",

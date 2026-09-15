@@ -123,6 +123,9 @@ class AppConfig:
     animations: bool = True
     # 玻璃强度百分比（60-160），整体缩放模糊与饱和度
     glass_strength: int = 100
+    # 公平抽取袋的状态（本轮还剩谁、上一位是谁）。
+    # 显式保存而非从历史推断——推断在轮次边界有歧义，会导致重复。
+    fair_bag_state: Optional[dict] = None
     version: int = 4
 
     def to_dict(self) -> dict:
@@ -140,6 +143,7 @@ class AppConfig:
             "backdrop": self.backdrop,
             "animations": self.animations,
             "glass_strength": self.glass_strength,
+            "fair_bag_state": self.fair_bag_state,
             "version": self.version,
         }
 
@@ -186,6 +190,8 @@ class AppConfig:
             backdrop=_choice(raw.get("backdrop"), ("opaque", "translucent", "glass"), "opaque"),
             animations=bool(raw.get("animations", True)),
             glass_strength=_int("glass_strength", 100, 60, 160),
+            fair_bag_state=raw.get("fair_bag_state") if isinstance(
+                raw.get("fair_bag_state"), dict) else None,
         )
 
 

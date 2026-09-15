@@ -81,6 +81,11 @@ class DrawService:
     def __init__(self, random_source: Optional[RandomSource] = None) -> None:
         self._rng: RandomSource = random_source or SystemRandom()
 
+    @property
+    def rng(self) -> RandomSource:
+        """随机源（供公平抽取袋共用，保证同一熵源）。"""
+        return self._rng
+
     def draw(self, roster: Roster) -> Optional[Student]:
         """从名单中均匀抽取一人；名单为空返回 None。"""
         if roster.is_empty():
