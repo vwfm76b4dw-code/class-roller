@@ -27,14 +27,13 @@ CORE_TESTS = [
     "tests/test_infrastructure.py",
     "tests/test_config_location.py",
     "tests/test_randomness.py",
-    "tests/test_display_scaling.py",
+    "tests/test_document_formats.py",
+    "tests/test_web_ui.py",
     "tests/test_import_scenarios.py",
     "tests/test_import_e2e.py",
 ]
-GUI_TESTS = [
-    "tests/test_presentation.py",
-    "tests/test_topmost.py",
-]
+# v4.5 起界面为 WebView2，测试全部无需图形环境
+GUI_TESTS: list = []
 
 
 def read_version() -> str:

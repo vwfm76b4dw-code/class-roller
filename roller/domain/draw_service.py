@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import random
+from collections import Counter
 from typing import List, Optional, Protocol, Sequence, TypeVar
 
 from roller.domain.models import Roster, Student
@@ -49,20 +50,29 @@ def undrawn_from_history(
 ) -> List[str]:
     """根据历史记录推算"本轮还没被抽到的人"。
 
-    从最近一抽往前回溯，累计覆盖全部名单的那一刻即上一轮的边界；
-    边界之后（更近的）抽中者构成当前轮，名单中不在其中的即未抽者。
+    按**多重集**处理：名单里有两个"张伟"，就需要本轮抽到两次才算覆盖。
+    从最近一抽往前回溯，累计覆盖全部名单份数的那一刻即上一轮的边界；
+    边界之后（更近的）抽中者构成当前轮，名单中尚未被覆盖的即未抽者。
 
     名单有增删时自动适应：离开的人被忽略，新加入的人本轮未被抽过、
     会进入未抽集合。历史覆盖不了名单（如刚清空历史）时，未抽=全名单。
     """
-    remaining = set(roster_names)
-    if not remaining:
+    if not roster_names:
         return []
+    remaining = Counter(roster_names)
     for name in reversed(history_names):
-        if not remaining:
+        if not any(remaining.values()):
             break
-        remaining.discard(name)
-    return [n for n in roster_names if n in remaining]
+        if remaining.get(name, 0) > 0:
+            remaining[name] -= 1
+    # 保持名单原有顺序，便于"随机滚动"时观感稳定
+    bag: List[str] = []
+    used = Counter()
+    for name in roster_names:
+        if used[name] < remaining.get(name, 0):
+            bag.append(name)
+            used[name] += 1
+    return bag
 
 
 class DrawService:

@@ -25,7 +25,7 @@ CONFIG_FILE_NAME = "config.json"
 MAX_HISTORY = 200
 
 # 窗口尺寸约束（与 MainWindow 的 minsize 保持一致）
-MIN_WINDOW_W, MIN_WINDOW_H = 340, 280
+MIN_WINDOW_W, MIN_WINDOW_H = 220, 170
 MAX_WINDOW_W, MAX_WINDOW_H = 4000, 3000
 
 
@@ -113,14 +113,16 @@ class AppConfig:
     # 严格相等（1/N），与名单顺序、位置、历史都无关。
     fair_mode: bool = False
     avoid_repeat_window: int = 0
-    window_width: int = 440
-    window_height: int = 380
+    window_width: int = 400
+    window_height: int = 430
     window_x: int = -1   # -1 = 未记录，居中显示
     window_y: int = -1
     # 背景效果：opaque / translucent / glass
     backdrop: str = "opaque"
     # 界面动画开关（另受系统"减少动态效果"约束）
     animations: bool = True
+    # 玻璃强度百分比（60-160），整体缩放模糊与饱和度
+    glass_strength: int = 100
     version: int = 4
 
     def to_dict(self) -> dict:
@@ -137,6 +139,7 @@ class AppConfig:
             "window_y": self.window_y,
             "backdrop": self.backdrop,
             "animations": self.animations,
+            "glass_strength": self.glass_strength,
             "version": self.version,
         }
 
@@ -176,12 +179,13 @@ class AppConfig:
             always_on_top=bool(raw.get("always_on_top", True)),
             fair_mode=bool(raw.get("fair_mode", False)),
             avoid_repeat_window=_int("avoid_repeat_window", 0, 0, 999),
-            window_width=_int("window_width", 440, MIN_WINDOW_W, MAX_WINDOW_W),
-            window_height=_int("window_height", 380, MIN_WINDOW_H, MAX_WINDOW_H),
+            window_width=_int("window_width", 400, MIN_WINDOW_W, MAX_WINDOW_W),
+            window_height=_int("window_height", 430, MIN_WINDOW_H, MAX_WINDOW_H),
             window_x=_int("window_x", -1, -1, 999999),
             window_y=_int("window_y", -1, -1, 999999),
             backdrop=_choice(raw.get("backdrop"), ("opaque", "translucent", "glass"), "opaque"),
             animations=bool(raw.get("animations", True)),
+            glass_strength=_int("glass_strength", 100, 60, 160),
         )
 
 

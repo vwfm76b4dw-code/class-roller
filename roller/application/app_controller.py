@@ -195,6 +195,11 @@ class AppController:
         self._config.animations = bool(enabled)
         self._persist()
 
+    def set_glass_strength(self, value: int) -> None:
+        """玻璃强度百分比（60-160）。"""
+        self._config.glass_strength = max(60, min(160, int(value)))
+        self._persist()
+
     def set_fair_mode(self, enabled: bool) -> None:
         """公平模式：本轮所有人被抽过之前不重复（默认开）。"""
         self._config.fair_mode = bool(enabled)

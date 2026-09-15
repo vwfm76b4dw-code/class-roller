@@ -1,32 +1,42 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller 打包配置。
+"""PyInstaller 打包配置（v4.5 WebView2 版）。
 
-采用 **onedir（文件夹式）** 而非 onefile：
-- onefile 每次启动都要把 Python 运行时解压到 %TEMP%，启动慢、易被杀软拦截；
-- onedir 直接加载同目录的 DLL，启动快，形态与常见 Windows 软件一致。
+采用 onedir（文件夹式）：
+- onefile 每次启动都要把运行时解压到 %TEMP%，启动慢且易被拦；
+- onedir 直接加载同目录 DLL，启动快。
 
-产物 dist/class-roller/ 整个文件夹可以直接拷给别人用，
-需要单文件分发时用 tools/make_release.py 打 zip。
+WebView2 相关：
+- 界面资源（roller/presentation/web）作为数据一并打包
+- 依赖目标机器已安装的 WebView2 运行时（Win11 自带）
+- 若随包携带 bootstrapper，会打进 vendor/ 供首次运行自动安装
 """
 
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-# 版本号从包内读取，避免两处维护
 _version_ns: dict = {}
 exec(
     (Path(SPECPATH) / "roller" / "_version.py").read_text(encoding="utf-8"),
     _version_ns,
 )
 VERSION = _version_ns["__version__"]
-VERSION_TUPLE = tuple(int(x) for x in VERSION.split(".")) + (0,)
 
-datas = collect_data_files("customtkinter")
-# 应用图标等资源要一起打进去
+datas = collect_data_files("customtkinter")          # 兼容旧主题资源
 datas += [("roller/assets", "assets")]
+datas += [("roller/presentation/web", "presentation/web")]
 
-hiddenimports = collect_submodules("customtkinter") + ["pystray", "PIL"]
+# WebView2 bootstrapper（可选）：存在就打进去，用于缺运行时的机器自动安装
+_vendor = Path(SPECPATH) / "vendor"
+if _vendor.is_dir():
+    datas += [(str(_vendor), "webview2")]
+
+hiddenimports = collect_submodules("webview") + [
+    "pystray",
+    "PIL",
+    "clr_loader",
+    "pythonnet",
+]
 
 a = Analysis(
     ["roller/__main__.py"],
@@ -38,14 +48,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        "numpy",
-        "pygame",
-        "matplotlib",
-        "scipy",
-        "pandas",
-        "pytest",
-        "setuptools",
-        "pip",
+        "numpy", "pygame", "matplotlib", "scipy", "pandas", "pytest",
+        "setuptools", "pip", "tkinter.test", "test",
     ],
     noarchive=False,
 )

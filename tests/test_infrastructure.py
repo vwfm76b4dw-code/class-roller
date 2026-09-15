@@ -124,7 +124,7 @@ def test_config_clamps_window_size():
     raw = {"window_width": 99999, "window_height": 5}
     cfg = AppConfig.from_dict(raw)
     assert cfg.window_width == 4000
-    assert cfg.window_height == 280
+    assert cfg.window_height == 170
 
 
 def test_config_ignores_bad_types():

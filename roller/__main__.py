@@ -1,11 +1,17 @@
 """程序入口：依赖装配。
 
 这是唯一知道"具体实现"的地方——其他模块都只依赖抽象。
+
+v4.5 起界面改用 WebView2 渲染：只有"透明窗口 + CSS backdrop-filter"
+才能做出真正的液态玻璃（Tk 无法分区透明，做不到）。
+领域层、基础设施层、应用层完全复用，未因换界面而改动。
 """
 
 from __future__ import annotations
 
+import os
 import sys
+import time
 from pathlib import Path
 
 # 允许以脚本方式直接运行（未安装为包时）
@@ -16,9 +22,8 @@ from roller import __app_name__
 from roller.application.app_controller import AppController
 from roller.infrastructure.config_store import ConfigStore
 from roller.infrastructure.roster_parser import RosterParser
-from roller.presentation.main_window import MainWindow
-from roller.presentation.theme import apply_theme
 from roller.presentation.tray import TrayService
+from roller.presentation.web_window import WebView2Missing
 
 
 def build_controller() -> AppController:
@@ -29,49 +34,59 @@ def build_controller() -> AppController:
     )
 
 
+def _message_box(message: str, title: str) -> None:
+    """用系统消息框报错——此时网页界面还起不来，只能走原生弹窗。"""
+    try:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(None, message, title, 0x10 | 0x40000)
+    except Exception:
+        print(message, file=sys.stderr)
+
+
 def main() -> int:
-    palette = apply_theme()
+    from roller.presentation.web_window import WebWindow
+
     controller = build_controller()
+    tray_holder: dict = {}
 
-    tray: TrayService | None = None
-    app: MainWindow | None = None
+    window = WebWindow(controller, on_hide_to_tray=None)
 
-    from roller import compat
-
-    def hide_to_tray() -> None:
-        """关闭/最小化时缩到托盘。"""
-        if compat.NO_TRAY:
-            return
-        if tray is not None and tray.available:
+    def start_tray() -> None:
+        """托盘在独立线程里跑（pystray 的要求）。"""
+        tray = TrayService(
+            on_show=window.show_from_tray,
+            on_quit=window.quit,
+            title=__app_name__,
+        )
+        tray_holder["tray"] = tray
+        if tray.available:
             tray.start()
 
-    def quit_app() -> None:
-        controller.shutdown()
-        if tray is not None:
-            tray.stop()
-        if app is not None:
-            app.destroy()
-
-    app = MainWindow(
-        controller,
-        palette,
-        on_hide_to_tray=hide_to_tray,
-        on_quit=quit_app,
-    )
-
-    # 托盘回调发生在托盘线程，必须回到 tkinter 主线程
-    tray = TrayService(
-        on_show=lambda: app.after(0, app.restore_from_tray),
-        on_quit=lambda: app.after(0, quit_app),
-        title=__app_name__,
-    )
-
     try:
-        app.mainloop()
+        import webview
+
+        def bootstrap() -> None:
+            time.sleep(1.5)          # 等窗口真正显示出来
+            start_tray()
+
+        window.create()
+        webview.start(
+            bootstrap,
+            gui="edgechromium",
+            debug=bool(os.environ.get("CR_WEB_DEBUG")),
+        )
+    except WebView2Missing as exc:
+        _message_box(str(exc), f"{__app_name__} 无法启动")
+        return 2
+    except Exception as exc:  # 兜底：任何启动失败都要让用户看到原因
+        _message_box(f"启动失败：\n{exc!r}", f"{__app_name__} 无法启动")
+        return 1
     finally:
-        controller.shutdown()
+        tray = tray_holder.get("tray")
         if tray is not None:
             tray.stop()
+        controller.shutdown()
     return 0
 
 

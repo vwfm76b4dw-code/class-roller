@@ -255,9 +255,12 @@ def test_NN_inline_indexes():
     assert parse_text("1.张三、2.李四").names == ["张三", "李四"]
 
 
-def test_NN2_space_separated_no_index():
-    """无编号的同行多个名字不拆（可能是"Li Hua"这类带空格的名字）。"""
-    assert parse_text("张三 李四 王五").names == ["张三 李四 王五"]
+def test_NN2_space_separated_names():
+    """整行都是完整中文姓名时按空格拆开（学校名单常见）。
+
+    "Li Hua" 这类西文名不拆——拆开会把一个人变成两个。
+    """
+    assert parse_text("张三 李四 王五").names == ["张三", "李四", "王五"]
     assert parse_text("Li Hua").names == ["Li Hua"]
 
 

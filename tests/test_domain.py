@@ -32,12 +32,14 @@ def test_student_rejects_empty():
         raise AssertionError(f"应拒绝空姓名: {bad!r}")
 
 
-def test_roster_adds_and_dedupes():
+def test_roster_adds_and_keeps_duplicates():
+    """同名必须保留——班里可能真有两个张伟，早期版本会把其中一个吞掉。"""
     roster = Roster()
     assert roster.add("张三") is True
-    assert roster.add("张三") is False  # 重名
-    assert roster.add("   ") is False  # 空名
-    assert len(roster) == 1
+    assert roster.add("张三") is True    # 同名允许
+    assert roster.add("   ") is False    # 空名拒绝
+    assert len(roster) == 2
+    assert roster.count_of("张三") == 2
 
 
 def test_roster_remove_and_clear():
@@ -50,10 +52,11 @@ def test_roster_remove_and_clear():
 
 
 def test_roster_replace_all():
+    """replace_all 按多重集处理：入参里出现两份就该有两份。"""
     roster = Roster(["张三", "李四"])
     added = roster.replace_all(["王五", "赵六", "王五"])
-    assert added == 2  # 重复的只算一次
-    assert roster.names() == ["王五", "赵六"]
+    assert added == 3
+    assert sorted(roster.names()) == ["王五", "王五", "赵六"]
 
 
 def test_draw_returns_none_on_empty_roster():

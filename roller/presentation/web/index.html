@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>课堂抽奖器</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="stage">
+    <main class="glass" id="panel">
+      <!-- 标题栏：可拖拽移动窗口 -->
+      <header class="titlebar" id="titlebar">
+        <div class="brand">
+          <span class="dot" id="liveDot"></span>
+          <span class="brand-text">课堂抽奖器</span>
+        </div>
+        <div class="controls">
+          <button class="ctrl" id="btnPin" title="窗口置顶" aria-label="置顶">
+            <svg viewBox="0 0 16 16"><path d="M8 1.8 9.6 5.2l3.7.5-2.7 2.6.6 3.6L8 10.2 4.8 11.9l.6-3.6L2.7 5.7l3.7-.5z"/></svg>
+          </button>
+          <button class="ctrl" id="btnSettings" title="设置" aria-label="设置">
+            <svg viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/><circle cx="5.8" cy="4.5" r="1.5"/><circle cx="10.2" cy="8" r="1.5"/><circle cx="6.6" cy="11.5" r="1.5"/></svg>
+          </button>
+          <button class="ctrl" id="btnMin" title="最小化" aria-label="最小化">
+            <svg viewBox="0 0 16 16"><path d="M4.5 8h7"/></svg>
+          </button>
+          <button class="ctrl danger" id="btnClose" title="关闭到托盘" aria-label="关闭">
+            <svg viewBox="0 0 16 16"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 结果区 -->
+      <section class="result">
+        <div class="status"><span class="tag" id="statusTag"></span></div>
+        <div class="name idle" id="nameText">准备好了</div>
+      </section>
+
+      <!-- 操作区 -->
+      <footer class="actions">
+        <button class="draw" id="btnDraw"><span class="draw-label">抽 奖</span></button>
+      </footer>
+      <div class="meta" id="metaLine"></div>
+    </main>
+
+    <!-- 设置 -->
+    <aside class="sheet" id="sheet" aria-hidden="true">
+      <header class="sheet-head">
+        <h1>设置</h1>
+        <button class="ctrl" id="btnSheetClose" aria-label="关闭设置">
+          <svg viewBox="0 0 16 16"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4"/></svg>
+        </button>
+      </header>
+
+      <nav class="tabs" id="tabs">
+        <button class="tab is-active" data-tab="roster">名单</button>
+        <button class="tab" data-tab="history">历史</button>
+        <button class="tab" data-tab="prefs">偏好</button>
+      </nav>
+
+      <!-- 名单 -->
+      <section class="pane is-active" data-pane="roster">
+        <div class="toolbar">
+          <button class="btn primary" id="btnImport">导入文件</button>
+          <button class="btn" id="btnAdd">添加</button>
+          <button class="btn" id="btnExport">导出</button>
+          <button class="btn danger" id="btnClear">清空</button>
+        </div>
+        <ul class="roster" id="rosterList"></ul>
+        <p class="hint" id="rosterHint"></p>
+      </section>
+
+      <!-- 历史 -->
+      <section class="pane" data-pane="history">
+        <div class="toolbar">
+          <span class="hint" id="historyHint"></span>
+          <button class="btn danger" id="btnClearHistory">清空历史</button>
+        </div>
+        <ul class="history" id="historyList"></ul>
+      </section>
+
+      <!-- 偏好 -->
+      <section class="pane" data-pane="prefs">
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="row-title">窗口始终置顶</div>
+              <div class="row-hint">投影、PPT 放映时不被其他窗口盖住</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="swTop"><span></span></label>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div>
+              <div class="row-title">公平抽取</div>
+              <div class="row-hint">
+                关闭（默认）：每次独立抽取，每人概率恒等，与名单位置无关<br>
+                开启：一轮之内不重复点名，抽完一轮自动开始下一轮
+              </div>
+            </div>
+            <label class="switch"><input type="checkbox" id="swFair"><span></span></label>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div>
+              <div class="row-title">界面动画</div>
+              <div class="row-hint">抽取滚动与结果落定；系统开启「减少动态效果」时会自动停用</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="swAnim"><span></span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row-title">配置文件</div>
+          <div class="path" id="cfgPath"></div>
+          <button class="btn" id="btnOpenCfg">打开所在文件夹</button>
+          <div class="row-hint">名单、历史与设置都存在这个文件里，可以备份或拷到别的电脑</div>
+        </div>
+      </section>
+
+      <footer class="sheet-foot">
+        <button class="btn primary wide" id="btnSheetDone">完成</button>
+      </footer>
+    </aside>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
