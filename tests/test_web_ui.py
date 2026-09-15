@@ -422,6 +422,11 @@ def test_ui_no_external_resources_still():
         assert pattern not in text, f"引用了外部资源: {pattern}"
 
 
+
+
+
+
+
 if __name__ == "__main__":
     failures = []
     for name, fn in sorted(globals().items()):

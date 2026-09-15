@@ -138,6 +138,11 @@ class WebWindow:
     def create(self):
         import webview
 
+        # 必须先修 pywebview 的移动 bug，否则窗口创建后一拖就崩
+        from roller.presentation.pywebview_fixes import patch_pywebview_move
+
+        patch_pywebview_move()
+
         from roller.presentation.api import WebApi
 
         cfg = self._c.config
@@ -157,11 +162,13 @@ class WebWindow:
             y=y,
             min_size=(MIN_W, MIN_H),
             frameless=True,          # 无系统标题栏（自绘）
-            # 不做透明：实测 Windows 拿不到"窗口外内容的模糊"，
-            # 无模糊的真透明会透出杂乱背景。改在页面内自绘材料质感。
+            # 不做颜色键透明：它会让挖空区域的鼠标事件穿透到下层窗口
+            # （用户实测反馈"会直接点到下层窗口"）。材料在页面内绘制。
             transparent=False,
             on_top=bool(cfg.always_on_top),
-            easy_drag=False,         # 拖动由页面上的 -webkit-app-region 控制
+            # 拖动窗口：交给 pywebview。
+            # 它原本在 64 位下有 bug（一拖就崩），已由 pywebview_fixes 修复。
+            easy_drag=True,
             resizable=True,
             text_select=False,
             confirm_close=False,

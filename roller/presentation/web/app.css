@@ -23,9 +23,9 @@
   --surface-hover: #e4e6ea;
 
   /* —— 苹果系统色 —— */
-  --label:           #1d1d1f;
-  --label-secondary: #48484a;
-  --label-tertiary:  #8e8e93;
+  --label:           #1a1a1c;
+  --label-secondary: #4a4a4d;
+  --label-tertiary:  #7c7c82;
   --separator:       rgba(60, 60, 67, 0.14);
   --accent:          #007aff;
   --accent-hover:    #0a84ff;
@@ -56,7 +56,9 @@
 
 html, body {
   width: 100%; height: 100%;
-  background: var(--surface);
+  /* 必须透明：窗口用色键挖空，页面不绘制处即透出后面的窗口。
+     若这里填色，就会看到"方形底 + 圆角面板"两层。 */
+  background: transparent;
   overflow: hidden;
   font-family: "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -66,10 +68,13 @@ html, body {
 }
 
 .stage {
+  /* 填满整个窗口：窗口已由系统圆角，页面再留边距就会露出没画东西的
+     区域（看起来像"方框套圆角"）。内容边距改在面板内部用 padding 留。 */
   position: relative;
   width: 100%; height: 100%;
-  padding: clamp(6px, 1.6vmin, 12px);
+  padding: 0;
   display: flex;
+  background: transparent;
 }
 
 /* ---------- 面板（材料）---------- */
@@ -78,20 +83,27 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-radius: var(--r-window);
+  /* 窗口本身已被系统圆角裁切，这里不再自加圆角 */
+  border-radius: 0;
   overflow: hidden;
-  background: linear-gradient(180deg, #f8f9fb 0%, var(--surface) 100%);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+
+  /* 玻璃：半透明浅色 + 上亮下暗的极淡渐变。
+     alpha 是通透与可读的平衡点——太低会透出杂乱背景、文字难读，
+     太高就失去玻璃感。0.72~0.78 在浅色与深色背景上都站得住。 */
+  /* 材料：浅色底 + 上亮下暗的极淡渐变，靠明度层次而不靠阴影。
+     窗口不透明，因此这里是实色；通透度由整窗 alpha 单独控制。 */
+  background: linear-gradient(180deg, #fbfcfe 0%, #f2f4f8 100%);
+
+  /* 顶缘高光勾出上边界（材料的关键） */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 /* ---------- 标题栏 ---------- */
 .titlebar {
   position: relative; z-index: 2;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 12px 8px 16px;
+  /* 左右/上留出 ≥8px：边缘是拖拽调整大小的区域，控件不要压上去 */
+  padding: 12px 12px 8px 18px;
   -webkit-app-region: drag;
   cursor: grab;
 }
@@ -102,6 +114,7 @@ html, body {
   font-size: 12.5px; font-weight: 600;
   color: var(--label-secondary);
   letter-spacing: .2px;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.6);
 }
 .dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -166,11 +179,14 @@ html, body {
   word-break: break-word;
   transform-origin: center;
   will-change: transform, filter, opacity;
+  /* 玻璃上的深色文字：一层极淡白晕把它从背景里托起来。
+     比"加背衬方块"干净得多，不会在界面上留下可见矩形。 */
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
 }
 .name.idle {
   font-size: clamp(13px, 4.4vmin, 16px);
   font-weight: 500;
-  color: var(--label-tertiary);
+  color: var(--label-secondary);
   letter-spacing: 0;
 }
 .name.winner { color: var(--accent); }
@@ -184,6 +200,7 @@ html, body {
 .draw {
   position: relative;
   width: 100%; height: 48px;
+  margin: 0 auto;
   border: none; border-radius: var(--r-card);
   font-family: inherit; font-size: 16px; font-weight: 700;
   letter-spacing: 3px; color: #fff;
@@ -219,24 +236,23 @@ html, body {
 .meta {
   position: relative; z-index: 2;
   text-align: center;
-  font-size: 11.5px; color: var(--label-tertiary);
+  font-size: 11.5px; color: var(--label-secondary);
   padding: 0 var(--s4) var(--s4);
   min-height: 26px;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.6);
 }
 
 /* ---------- 设置抽屉 ---------- */
 .sheet {
-  position: absolute; inset: clamp(6px, 1.6vmin, 12px);
+  position: absolute; inset: 0;
   z-index: 10;
   display: flex; flex-direction: column;
   border-radius: var(--r-window);
   overflow: hidden;
-  background: linear-gradient(180deg, #fbfbfd 0%, #f4f5f7 100%);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 10px 30px rgba(0, 0, 0, 0.14);
+  /* 抽屉比主面板略实（表单要读得清），但仍是玻璃 */
+  background: linear-gradient(180deg, #fbfcfe 0%, #f3f5f9 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
 
   opacity: 0;
   transform: translateY(10px) scale(0.99);
@@ -297,8 +313,8 @@ html, body {
 
 .roster, .history {
   list-style: none; display: flex; flex-direction: column; gap: 1px;
-  background: var(--surface-sunk);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(238, 240, 244, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: var(--r-card);
   padding: var(--s2); overflow-y: auto; flex: 1; min-height: 120px;
 }
@@ -317,8 +333,8 @@ html, body {
 .hint { font-size: 11.5px; color: var(--label-tertiary); line-height: 1.6; }
 
 .card {
-  background: var(--surface-card);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: var(--r-card);
   padding: 10px var(--s4);
   display: flex; flex-direction: column; gap: 10px;
@@ -415,7 +431,7 @@ body.no-anim *, body.no-anim *::before, body.no-anim *::after {
   transform: translate(-50%, 10px);
   padding: 8px 18px; border-radius: var(--r-pill);
   font-size: 12.5px; font-weight: 600; color: var(--label);
-  background: rgba(250, 250, 252, 0.96);
+  background: rgba(250, 250, 252, 0.94);
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
   opacity: 0; pointer-events: none;
